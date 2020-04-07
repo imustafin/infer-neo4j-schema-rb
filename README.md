@@ -12,3 +12,8 @@ Usage using pipes:
 ```
 cypher-shell "MATCH (n) RETURN DISTINCT labels(n), keys(n)" | ruby infer_neo4j_schema.rb
 ```
+
+Full pipeline from `cypher-shell` to a PNG:
+```
+cypher-shell "MATCH (n) RETURN DISTINCT labels(n), keys(n)" | ruby infer_neo4j_schema.rb | plantuml -p > classes.png
+```
