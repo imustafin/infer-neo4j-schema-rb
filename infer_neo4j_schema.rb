@@ -7,15 +7,20 @@ def labels_keys_from_line(s)
 end
 
 class Class
-  attr_reader :name, :properties, :records
+  attr_reader :name, :properties, :records, :abstract
+  attr_accessor :parents
 
-  def initialize(name)
+  def initialize(name, abstract: false)
     @name = name
 
     # @properties[i] = i is always present?
     @properties = Hash.new
 
     @records = 0
+
+    @abstract = abstract
+
+    @parents = []
   end
 
   def add_properties(properties)
@@ -34,36 +39,82 @@ class Class
     @records += 1
   end
 
+  def property_as_plantuml(property)
+    ans = property
+    ans = ans + '?' unless @properties[property]
+
+    inherited = parents.any? { |x| x.properties.keys.any? { |y| y == property } }
+    ans = '^' + ans if inherited
+
+    ans
+  end
+
   def as_plantuml_class
     properties = @properties
                    .keys
-                   .map { |x| "#{x}#{@properties[x] ? '' : '?'}" }
+                   .map { |x| property_as_plantuml(x) }
+                   .sort
                    .join("\n")
 
-    "class #{@name} { \n #{properties} \n }"
+    "#{abstract ? 'abstract' : ''} class \"#{@name}\" { \n #{properties} \n }"
   end
 end
 
-classes = {}
+def class_from(class_name, class_col)
+  cls = class_col.fetch(class_name, Class.new(class_name))
+  class_col[class_name] = cls
+  cls
+end
+
+concrete_classes = {}
+per_label_classes = {}
+
+props = Set.new
 
 ARGF.each_line do |line|
   next if ARGF.lineno == 1
 
   labels, keys = labels_keys_from_line(line)
 
-  labels << 'ANY'
+  props.merge(keys)
 
-  labels.each do |label|
-    cls = classes.fetch(label, Class.new(label))
+  concrete_label = labels.join(':')
 
-    cls.add_properties(keys)
+  class_from(concrete_label, concrete_classes).add_properties(keys)
 
-    classes[label] = cls
+  labels.each { |x| class_from(x, per_label_classes).add_properties(keys) }
+end
+
+# Extract non-nulls to separate classes
+
+non_null_classes = []
+
+props.each do |prop|
+  having = concrete_classes.values.select { |cls| cls.properties[prop] }
+
+  if having.length > 1
+    cls = Class.new("Having_#{prop}", abstract: true)
+    cls.properties[prop] = true
+
+    having.each do |h|
+      h.parents << cls
+    end
+
+    non_null_classes << cls
   end
 end
 
+
 puts "@startuml"
-classes.each do |name, cls|
+concrete_classes.each do |name, cls|
   puts cls.as_plantuml_class  
+
+  cls.parents.each do |parent|
+    puts "\"#{parent.name}\" <|-- \"#{cls.name}\""
+  end
+end
+
+non_null_classes.each do |cls|
+  puts cls.as_plantuml_class
 end
 puts "@enduml"
