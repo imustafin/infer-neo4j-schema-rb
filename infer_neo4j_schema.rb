@@ -58,6 +58,10 @@ class Class
 
     "#{abstract ? 'abstract' : ''} class \"#{@name}\" { \n #{properties} \n }"
   end
+
+  def to_s
+    "(#{@name})"
+  end
 end
 
 def class_from(class_name, class_col)
@@ -89,21 +93,22 @@ end
 
 non_null_classes = []
 
-props.each do |prop|
-  having = concrete_classes.values.select { |cls| cls.properties[prop] }
-
-  if having.length > 1
-    cls = Class.new("Having_#{prop}", abstract: true)
-    cls.properties[prop] = true
-
-    having.each do |h|
-      h.parents << cls
-    end
-
-    non_null_classes << cls
-  end
+prop_groups = props.group_by do |prop|
+  concrete_classes.values.select { |cls| cls.properties[prop] }
 end
 
+prop_groups.each do |having, props|
+  next if props.empty? || having.length < 2
+
+  cls = Class.new("Having: #{props.join(' ')}", abstract: true)
+  cls.add_properties(props)
+
+  having.each do |h|
+    h.parents << cls
+  end
+
+  non_null_classes << cls
+end
 
 puts "@startuml"
 concrete_classes.each do |name, cls|
