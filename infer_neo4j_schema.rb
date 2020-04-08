@@ -6,11 +6,10 @@ def labels_keys_from_line(s)
   JSON.parse("[#{s}]")
 end
 
-class Class
-  attr_reader :name, :properties, :records, :abstract
-  attr_accessor :parents
+class PropClass
+  attr_reader :name, :properties, :records, :abstract, :interface, :parents
 
-  def initialize(name, abstract: false)
+  def initialize(name)
     @name = name
 
     # @properties[i] = i is always present?
@@ -18,7 +17,7 @@ class Class
 
     @records = 0
 
-    @abstract = abstract
+    @interface = interface
 
     @parents = []
   end
@@ -49,6 +48,10 @@ class Class
     ans
   end
 
+  def plantuml_classifier
+    'class'
+  end
+
   def as_plantuml_class
     properties = @properties
                    .keys
@@ -56,22 +59,46 @@ class Class
                    .sort
                    .join("\n")
 
-    "#{abstract ? 'abstract' : ''} class \"#{@name}\" { \n #{properties} \n }"
+    parent_arrows = parents
+                      .map { |parent| "\"#{parent.name}\" <|-- \"#{@name}\"" }
+                      .join("\n")
+
+    <<~PLANTUML
+      #{plantuml_classifier} "#{name}" {
+        #{properties}
+      }
+      #{parent_arrows}
+    PLANTUML
   end
 
   def to_s
-    "(#{@name})"
+    "(C: #{@name})"
+  end
+end
+
+class Interface < PropClass
+  @@num = 0
+  def initialize
+    @@num += 1
+    super(@@num.to_s)
+  end
+
+  def plantuml_classifier
+    'interface'
+  end
+
+  def to_s
+    "(I: #{@name})"
   end
 end
 
 def class_from(class_name, class_col)
-  cls = class_col.fetch(class_name, Class.new(class_name))
+  cls = class_col.fetch(class_name, PropClass.new(class_name))
   class_col[class_name] = cls
   cls
 end
 
 concrete_classes = {}
-per_label_classes = {}
 
 props = Set.new
 
@@ -85,41 +112,81 @@ ARGF.each_line do |line|
   concrete_label = labels.join(':')
 
   class_from(concrete_label, concrete_classes).add_properties(keys)
-
-  labels.each { |x| class_from(x, per_label_classes).add_properties(keys) }
 end
 
-# Extract non-nulls to separate classes
-
-non_null_classes = []
-
-prop_groups = props.group_by do |prop|
-  concrete_classes.values.select { |cls| cls.properties[prop] }
+somehow_groups = props.group_by do |prop|
+  concrete_classes.values.select do |cls|
+    cls.properties.key?(prop)
+  end
 end
 
-prop_groups.each do |having, props|
-  next if props.empty? || having.length < 2
+interfaces = []
 
-  cls = Class.new("Having: #{props.join(' ')}", abstract: true)
-  cls.add_properties(props)
+somehow_groups.each do |children, props|
+  next if children.length <= 1 or props.empty?
 
-  having.each do |h|
-    h.parents << cls
+  present_groups = props.group_by do |x|
+    children.all? { |child| child.properties[x] }
   end
 
-  non_null_classes << cls
+  pres_props = present_groups[true] || []
+  maybe_props = present_groups[false] || []
+
+  group_cls = Interface.new
+  group_cls.add_properties(pres_props)
+  group_cls.add_properties(pres_props + maybe_props)
+  interfaces << group_cls
+
+  children.each do |x|
+    x.parents << group_cls
+
+    maybe_props.each do |prop|
+      if x.properties[prop]
+        cls = Interface.new
+        cls.add_properties([prop])
+
+        x.parents << cls
+        group_cls.parents << cls
+        interfaces << cls
+      end
+    end
+  end
+end
+
+
+# Uniq interfaces
+interfaces.group_by { |x| x.properties }.each do |props, group|
+  next if group.length < 2
+
+  cls = group.shift
+
+  interfaces.reject! { |i| group.include?(i) }
+
+  children = concrete_classes.values.select { |child| (child.parents & group).any? }
+
+  children.each do |child|
+    child.parents.reject! { |parent| group.include?(parent) }
+  end
+end
+
+all_classes = interfaces + concrete_classes.values
+
+# filter unneeded interfaces
+loop do
+  changed = all_classes.select! do |cls|
+    true
+  end
+
+  break unless changed
+end
+
+# forget not present parents
+all_classes.each do |cls| 
+  cls.parents.reject! { |x| !all_classes.include?(x) }
 end
 
 puts "@startuml"
-concrete_classes.each do |name, cls|
-  puts cls.as_plantuml_class  
-
-  cls.parents.each do |parent|
-    puts "\"#{parent.name}\" <|-- \"#{cls.name}\""
-  end
-end
-
-non_null_classes.each do |cls|
+all_classes.each do |cls|
   puts cls.as_plantuml_class
 end
 puts "@enduml"
