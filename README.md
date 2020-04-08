@@ -10,10 +10,10 @@ specific Cypher query in `cypher-shell`'s `--format plain` format.
 
 Usage using pipes:
 ```
-cypher-shell "MATCH (n) RETURN DISTINCT labels(n), keys(n)" | ruby infer_neo4j_schema.rb
+cypher-shell --format plain "MATCH (n) RETURN DISTINCT labels(n), keys(n)" | ruby infer_neo4j_schema.rb
 ```
 
 Full pipeline from `cypher-shell` to a PNG:
 ```
-cypher-shell "MATCH (n) RETURN DISTINCT labels(n), keys(n)" | ruby infer_neo4j_schema.rb | plantuml -p > classes.png
+cypher-shell --format plain "MATCH (n) RETURN DISTINCT labels(n), keys(n)" | ruby infer_neo4j_schema.rb | plantuml -p > classes.png
 ```
