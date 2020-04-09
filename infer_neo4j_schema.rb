@@ -40,10 +40,15 @@ class PropClass
 
   def property_as_plantuml(property)
     ans = property
-    ans = ans + '?' unless @properties[property]
+    ans = ans + '?' unless properties[property]
 
-    inherited = parents.any? { |x| x.properties.keys.any? { |y| y == property } }
+    inherited = parents.any? { |x| x.properties.key?(property) }
     ans = '^' + ans if inherited
+
+    if inherited
+      redefined = parents.any? { |x| x.properties.key?(property) && x.properties[property] != properties[property] }
+      ans = ans + " {redefines #{property}}" if redefined
+    end
 
     ans
   end
@@ -158,7 +163,6 @@ end
 # Uniq interfaces
 interfaces.group_by { |x| x.properties }.each do |props, group|
   next if group.length < 2
-
 
   children = concrete_classes.values.select { |child| (child.parents & group).any? }
 
