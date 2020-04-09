@@ -140,19 +140,20 @@ somehow_groups.each do |children, props|
   children.each do |x|
     x.parents << group_cls
 
-    maybe_props.each do |prop|
-      if x.properties[prop]
+    x.properties.keys.each do |prop|
+      if x.properties[prop] && maybe_props.include?(prop)
         cls = Interface.new
-        cls.add_properties([prop])
+        cls.add_properties([prop] + pres_props)
+        cls.add_properties([prop] + pres_props + maybe_props)
 
         x.parents << cls
-        group_cls.parents << cls
+        x.parents.delete(group_cls)
+        cls.parents << group_cls
         interfaces << cls
       end
     end
   end
 end
-
 
 # Uniq interfaces
 interfaces.group_by { |x| x.properties }.each do |props, group|
