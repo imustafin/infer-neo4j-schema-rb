@@ -2,6 +2,7 @@ require 'json'
 require 'set'
 require 'pp'
 require 'csv'
+require 'optparse'
 
 def labels_keys_from_line(s)
   JSON.parse("[#{s}]")
@@ -108,6 +109,19 @@ concrete_classes = {}
 
 props = Set.new
 
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: infer_neo4j_schema.rb [options]"
+
+  opts.on('--csv') do
+    options[:csv] = true
+  end
+
+  opts.on('--labels Abc,Xyz', Array) do |labels|
+    options[:labels] = labels
+  end
+end.parse!
+
 STDIN.each_line do |line|
   next if STDIN.lineno == 1
 
@@ -115,12 +129,14 @@ STDIN.each_line do |line|
 
   props.merge(keys)
 
+  labels = (labels & options[:labels]) if options[:labels]
+
   concrete_label = labels.join(':')
 
   class_from(concrete_label, concrete_classes).add_properties(keys)
 end
 
-if ARGV.include?('--csv')
+if options[:csv]
   CSV(STDOUT) do |csv|
     csv << ['class', 'property', 'always present']
     concrete_classes.values.each do |cls|
