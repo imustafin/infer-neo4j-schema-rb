@@ -159,14 +159,18 @@ end
 interfaces.group_by { |x| x.properties }.each do |props, group|
   next if group.length < 2
 
+
+  children = concrete_classes.values.select { |child| (child.parents & group).any? }
+
   cls = group.shift
 
   interfaces.reject! { |i| group.include?(i) }
 
-  children = concrete_classes.values.select { |child| (child.parents & group).any? }
-
   children.each do |child|
     child.parents.reject! { |parent| group.include?(parent) }
+    child.parents << cls
+  end
+end
   end
 end
 
