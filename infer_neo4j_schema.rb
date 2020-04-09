@@ -171,6 +171,30 @@ interfaces.group_by { |x| x.properties }.each do |props, group|
     child.parents << cls
   end
 end
+
+
+same_ifs = interfaces.group_by do |i|
+  concrete_classes.values.select { |x| x.parents.include?(i) }
+end
+
+same_ifs.each do |children, group|
+  next if group.length <= 1 || children.length <= 1
+
+  props = group.map { |x| x.properties.keys }.flatten
+  pres_props = props.select do |prop|
+    group.any? { |x| x.properties[prop] }
+  end
+
+  cls = Interface.new
+  cls.add_properties(pres_props)
+  cls.add_properties(pres_props + props)
+  cls.parents.concat(group)
+  interfaces << cls
+
+  children.each do |child|
+    child.parents.reject! { |x| group.include?(x) }
+
+    child.parents << cls
   end
 end
 
