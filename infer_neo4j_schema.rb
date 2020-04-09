@@ -1,6 +1,7 @@
 require 'json'
 require 'set'
 require 'pp'
+require 'csv'
 
 def labels_keys_from_line(s)
   JSON.parse("[#{s}]")
@@ -107,8 +108,8 @@ concrete_classes = {}
 
 props = Set.new
 
-ARGF.each_line do |line|
-  next if ARGF.lineno == 1
+STDIN.each_line do |line|
+  next if STDIN.lineno == 1
 
   labels, keys = labels_keys_from_line(line)
 
@@ -117,6 +118,18 @@ ARGF.each_line do |line|
   concrete_label = labels.join(':')
 
   class_from(concrete_label, concrete_classes).add_properties(keys)
+end
+
+if ARGV.include?('--csv')
+  CSV(STDOUT) do |csv|
+    csv << ['class', 'property', 'always present']
+    concrete_classes.values.each do |cls|
+      cls.properties.each do |prop, always_present|
+        csv << [cls.name, prop, always_present]
+      end
+    end
+  end
+  exit(true)
 end
 
 somehow_groups = props.group_by do |prop|
