@@ -142,20 +142,22 @@ somehow_groups.each do |children, props|
   group_cls.add_properties(pres_props + maybe_props)
   interfaces << group_cls
 
-  children.each do |x|
-    x.parents << group_cls
+  pres_specializations = children.group_by do |child|
+    maybe_props.select { |x| child.properties[x] }
+  end
 
-    x.properties.keys.each do |prop|
-      if x.properties[prop] && maybe_props.include?(prop)
-        cls = Interface.new
-        cls.add_properties([prop] + pres_props)
-        cls.add_properties([prop] + pres_props + maybe_props)
+  pres_specializations.each do |new_props, classes|
+    if new_props.empty?
+      classes.each { |c| c.parents << group_cls }
+    else
+      cls = Interface.new
+      cls.add_properties(new_props + pres_props)
+      cls.add_properties(new_props + pres_props + maybe_props)
+      cls.parents << group_cls
 
-        x.parents << cls
-        x.parents.delete(group_cls)
-        cls.parents << group_cls
-        interfaces << cls
-      end
+      interfaces << cls
+
+      classes.each { |c| c.parents << cls }
     end
   end
 end
