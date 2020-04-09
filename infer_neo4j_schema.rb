@@ -200,20 +200,6 @@ end
 
 all_classes = interfaces + concrete_classes.values
 
-# filter unneeded interfaces
-loop do
-  changed = all_classes.select! do |cls|
-    true
-  end
-
-  break unless changed
-end
-
-# forget not present parents
-all_classes.each do |cls| 
-  cls.parents.reject! { |x| !all_classes.include?(x) }
-end
-
 puts "@startuml"
 all_classes.each do |cls|
   puts cls.as_plantuml_class
