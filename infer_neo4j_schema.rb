@@ -204,6 +204,8 @@ end
 
 all_classes = interfaces + concrete_classes.values
 
+all_classes.each { |x| x.parents.uniq! }
+
 puts "@startuml"
 all_classes.each do |cls|
   puts cls.as_plantuml_class
