@@ -131,6 +131,8 @@ STDIN.each_line do |line|
 
   original_labels = ['UNLABELED'] if original_labels.empty?
 
+  original_labels.sort!
+
   props.merge(keys)
 
   labels = original_labels
