@@ -12,6 +12,8 @@ class PropClass
   attr_reader :name, :properties, :records, :abstract, :interface, :parents
 
   def initialize(name)
+    raise "Name can't be empty" if name.empty?
+
     @name = name
 
     # @properties[i] = i is always present?
@@ -125,11 +127,20 @@ end.parse!
 STDIN.each_line do |line|
   next if STDIN.lineno == 1
 
-  labels, keys = labels_keys_from_line(line)
+  original_labels, keys = labels_keys_from_line(line)
+
+  original_labels = ['UNLABELED'] if original_labels.empty?
 
   props.merge(keys)
 
+  labels = original_labels
   labels = (labels & options[:labels]) if options[:labels]
+
+  if labels.empty?
+    STDERR.puts "Ignoring node #{original_labels.join(':')} no labels are in --labels"
+
+    next
+  end
 
   concrete_label = labels.join(':')
 
